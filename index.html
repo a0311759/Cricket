@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,7 +25,6 @@ body {
   font-weight: bold;
   position: sticky;
   top: 0;
-  z-index: 10;
 }
 
 .score-row {
@@ -78,7 +78,6 @@ body {
   background-color: #d2b48c;
   border: 2px solid #8b4513;
   transform: translate(-50%, -50%);
-  z-index: 2;
 }
 
 /* FIELDERS */
@@ -153,8 +152,8 @@ body {
 </div>
 
 <script>
-
 window.onload = function() {
+
   const ground = document.getElementById('ground');
   const shotArrow = document.getElementById('shotArrow');
   const resultBox = document.getElementById('result');
@@ -162,14 +161,22 @@ window.onload = function() {
   const oversBox = document.getElementById('overs');
   const loftedCheckbox = document.getElementById('lofted');
 
-  let circleRadius = ground.offsetWidth / 2;
-  let innerRadius = circleRadius * 0.25;
+  let circleRadius, innerRadius;
+
+  function updateDimensions() {
+    circleRadius = ground.offsetWidth / 2;
+    innerRadius = circleRadius * 0.25;
+  }
+
+  updateDimensions();
+  window.onresize = updateDimensions;
 
   const sectorAngles = [22.5,67.5,112.5,157.5,202.5,247.5,292.5,337.5];
   const sectorNames = [
     "Covers","Mid Off","Mid On","Mid Wicket",
     "Square","Fine Leg","Third Man","Extra Cover"
   ];
+
   let placedAngles = new Map();
 
   let runs = 0, wickets = 0, balls = 0;
@@ -223,12 +230,10 @@ window.onload = function() {
   };
 
   function checkFielderCatch(angle) {
-    for (let [fa, f] of placedAngles) {
+    for (let [fa] of placedAngles) {
       let diff = Math.abs(fa - angle);
       if (diff > 180) diff = 360 - diff;
-      if (diff <= 22.5) {
-        return true;
-      }
+      if (diff <= 22.5) return true;
     }
     return false;
   }
@@ -250,21 +255,19 @@ window.onload = function() {
     let outcome = "";
     let run = 0;
 
-    // ✅ Read checkbox state
     let lofted = loftedCheckbox.checked;
     let shotType = lofted ? "Lofted" : "Driven";
     let segment = getSector(shotAngle);
 
-    // --- Risk logic ---
-    let bowledProb = lofted ? 0.15 : 0.02;   // higher chance of bowled for lofted
-    let runOutProb = lofted ? 0.08 : 0.02;   // lofted also riskier for run outs
+    let bowledProb = lofted ? 0.15 : 0.02;
+    let runOutProb = lofted ? 0.08 : 0.02;
 
     if (Math.random() < bowledProb) {
       outcome = `${shotType} shot over ${segment} — BOWLED!`;
       wickets++;
     }
     else if (checkFielderCatch(shotAngle)) {
-      let catchProb = lofted ? 0.7 : 0.3; // lofted easier to catch
+      let catchProb = lofted ? 0.7 : 0.3;
       if (Math.random() < catchProb) {
         outcome = `${shotType} shot over ${segment} — CAUGHT!`;
         wickets++;
@@ -290,6 +293,7 @@ window.onload = function() {
 
     if (balls >= totalOvers*6 || wickets >= 10) {
       resultBox.textContent += " | Innings Over!";
+      clearInterval(timer);
       return;
     }
 
@@ -299,14 +303,13 @@ window.onload = function() {
   function startBall() {
     randomizeField();
     let time = 2;
-    resultBox.textContent = "Choose shot... " + time;
 
     clearInterval(timer);
     timer = setInterval(() => {
-      time--;
       resultBox.textContent = "Choose shot... " + time;
+      time--;
 
-      if (time <= 0) {
+      if (time < 0) {
         clearInterval(timer);
         playShot();
       }
@@ -316,221 +319,8 @@ window.onload = function() {
   updateScore();
   startBall();
 };
-</script>
-
-</body>
-</html>  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 50%;
-  height: 3px;
-  background: blue;
-  transform-origin: left center;
-}
-
-/* CONTROLS */
-#controls {
-  background: white;
-  padding: 12px;
-  text-align: center;
-  border-top: 2px solid #ccc;
-  position: sticky;
-  bottom: 0;
-}
-
-#result {
-  margin-top: 8px;
-  font-weight: bold;
-}
-</style>
-</head>
-
-<body>
-
-<!-- SCOREBOARD -->
-<div id="scoreboard">
-  <div class="score-row">
-    <span id="score">Runs: 0 | Wickets: 0</span>
-    <span id="overs">Overs: 0.0 / 5</span>
-  </div>
-</div>
-
-<!-- GAME -->
-<div class="game-container">
-  <div class="canvas-container">
-    <div class="circle" id="ground">
-      <div class="inner-circle"></div>
-      <div class="pitch"></div>
-      <div class="shot-arrow" id="shotArrow"></div>
-    </div>
-  </div>
-</div>
-
-<!-- CONTROLS -->
-<div id="controls">
-  <label><input type="checkbox" id="lofted"> Lofted Shot</label>
-  <div id="result">Game starting...</div>
-</div>
-
-<script>
-
-window.onload = function() {
-  const ground = document.getElementById('ground');
-  const shotArrow = document.getElementById('shotArrow');
-  const resultBox = document.getElementById('result');
-  const scoreBox = document.getElementById('score');
-  const oversBox = document.getElementById('overs');
-  const loftedCheckbox = document.getElementById('lofted');
-
-  let circleRadius = ground.offsetWidth / 2;
-  let innerRadius = circleRadius * 0.25;
-
-  const sectorAngles = [22.5,67.5,112.5,157.5,202.5,247.5,292.5,337.5];
-  const sectorNames = [
-    "Covers","Mid Off","Mid On","Mid Wicket",
-    "Square","Fine Leg","Third Man","Extra Cover"
-  ];
-  let placedAngles = new Map();
-
-  let runs = 0, wickets = 0, balls = 0;
-  const totalOvers = 5;
-
-  let shotAngle = 0;
-  let timer;
-
-  function updateScore() {
-    scoreBox.textContent = `Runs: ${runs} | Wickets: ${wickets}`;
-    oversBox.textContent = `Overs: ${Math.floor(balls/6)}.${balls%6} / ${totalOvers}`;
-  }
-
-  function clearFielders() {
-    placedAngles.forEach(f => ground.removeChild(f.element));
-    placedAngles.clear();
-  }
-
-  function placeFielder(angle, inside) {
-    const f = document.createElement('div');
-    f.className = 'fielder';
-    f.textContent = "F";
-
-    const r = inside ? innerRadius * 0.9 : circleRadius * 0.85;
-    const rad = angle * Math.PI / 180;
-
-    f.style.left = `${circleRadius + r * Math.cos(rad)}px`;
-    f.style.top = `${circleRadius + r * Math.sin(rad)}px`;
-
-    ground.appendChild(f);
-    placedAngles.set(angle, {element: f, inside});
-  }
-
-  function randomizeField() {
-    clearFielders();
-    const shuffled = [...sectorAngles].sort(() => Math.random() - 0.5);
-    for (let i = 0; i < 5; i++) {
-      placeFielder(shuffled[i], Math.random() < 0.5);
-    }
-  }
-
-  ground.onclick = (e) => {
-    const rect = ground.getBoundingClientRect();
-    const dx = e.clientX - (rect.left + rect.width/2);
-    const dy = e.clientY - (rect.top + rect.height/2);
-
-    shotAngle = Math.atan2(dy, dx) * 180 / Math.PI;
-    if (shotAngle < 0) shotAngle += 360;
-
-    shotArrow.style.transform = `rotate(${shotAngle}deg)`;
-  };
-
-  function checkFielderCatch(angle) {
-    for (let [fa, f] of placedAngles) {
-      let diff = Math.abs(fa - angle);
-      if (diff > 180) diff = 360 - diff;
-      if (diff <= 22.5) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function getSector(angle) {
-    let closest = 0, minDiff = 999;
-    sectorAngles.forEach((a, i) => {
-      let diff = Math.abs(a - angle);
-      if (diff > 180) diff = 360 - diff;
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = i;
-      }
-    });
-    return sectorNames[closest];
-  }
-
-  function playShot() {
-    let outcome = "";
-    let run = 0;
-
-    // ✅ Read checkbox state
-    let lofted = loftedCheckbox.checked;
-    let shotType = lofted ? "Lofted" : "Driven";
-    let segment = getSector(shotAngle);
-
-    // --- Risk logic ---
-    let bowledProb = lofted ? 0.15 : 0.02; // higher chance of bowled for lofted
-    if (Math.random() < bowledProb) {
-      outcome = `${shotType} shot over ${segment} — BOWLED!`;
-      wickets++;
-    }
-    else if (checkFielderCatch(shotAngle)) {
-      let catchProb = lofted ? 0.7 : 0.3; // lofted easier to catch
-      if (Math.random() < catchProb) {
-        outcome = `${shotType} shot over ${segment} — CAUGHT!`;
-        wickets++;
-      } else {
-        run = lofted ? [4,6][Math.floor(Math.random()*2)] : [1,2,3][Math.floor(Math.random()*3)];
-        outcome = `${shotType} shot over ${segment} — ${run} Runs`;
-      }
-    } else {
-      run = lofted ? [2,4,6][Math.floor(Math.random()*3)] : [0,1,2,3,4][Math.floor(Math.random()*5)];
-      outcome = `${shotType} shot over ${segment} — ${run === 0 ? "Dot Ball" : run + " Runs"}`;
-    }
-
-    runs += run;
-    balls++;
-    updateScore();
-
-    resultBox.textContent = outcome;
-
-    if (balls >= totalOvers*6 || wickets >= 10) {
-      resultBox.textContent += " | Innings Over!";
-      return;
-    }
-
-    setTimeout(startBall, 1200);
-  }
-
-  function startBall() {
-    randomizeField();
-    let time = 2;
-    resultBox.textContent = "Choose shot... " + time;
-
-    clearInterval(timer);
-    timer = setInterval(() => {
-      time--;
-      resultBox.textContent = "Choose shot... " + time;
-
-      if (time <= 0) {
-        clearInterval(timer);
-        playShot();
-      }
-    }, 1000);
-  }
-
-  updateScore();
-  startBall();
-};
-
 </script>
 
 </body>
 </html>
+
