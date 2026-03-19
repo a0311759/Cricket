@@ -153,6 +153,7 @@ body {
 </div>
 
 <script>
+
 window.onload = function() {
   const ground = document.getElementById('ground');
   const shotArrow = document.getElementById('shotArrow');
@@ -170,6 +171,7 @@ window.onload = function() {
   const totalOvers = 5;
 
   let shotAngle = 0;
+  let lofted = false; // new flag for lofted shots
   let timer;
 
   function updateScore() {
@@ -214,14 +216,33 @@ window.onload = function() {
     if (shotAngle < 0) shotAngle += 360;
 
     shotArrow.style.transform = `rotate(${shotAngle}deg)`;
+
+    // toggle lofted if user right-clicks (example mechanic)
+    lofted = e.shiftKey; // hold Shift to loft the shot
   };
+
+  function checkFielderCatch(angle) {
+    for (let [fa, f] of placedAngles) {
+      // tolerance ±22.5°
+      let diff = Math.abs(fa - angle);
+      if (diff > 180) diff = 360 - diff;
+      if (diff <= 22.5) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   function playShot() {
     let outcome = "";
     let run = 0;
 
-    if (Math.random() < 0.05) {
-      outcome = "OUT!";
+    // lofted shots have higher chance of being caught
+    if (lofted && checkFielderCatch(shotAngle) && Math.random() < 0.6) {
+      outcome = "Caught!";
+      wickets++;
+    } else if (!lofted && checkFielderCatch(shotAngle) && Math.random() < 0.3) {
+      outcome = "Caught!";
       wickets++;
     } else {
       run = [0,1,2,3,4,6][Math.floor(Math.random()*6)];
@@ -262,6 +283,7 @@ window.onload = function() {
   updateScore();
   startBall();
 };
+
 </script>
 
 </body>
