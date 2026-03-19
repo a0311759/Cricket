@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cricket Shot Simulator</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #e6f2ff;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* TOP SCOREBOARD */
+#scoreboard {
+  background: #111;
+  color: white;
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  max-width: 500px;
+  margin: auto;
+}
+
+/* GAME AREA */
+.game-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.canvas-container {
+  position: relative;
+  width: 95%;
+  max-width: 500px;
+  aspect-ratio: 1/1;
+}
+
+/* GROUND */
+.circle {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: green;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.inner-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  aspect-ratio: 1 / 1;
+  border: 3px dashed white;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.pitch {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7.5%;
+  height: 20%;
+  background-color: #d2b48c;
+  border: 2px solid #8b4513;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  height: 2px;
+  transform-origin: left center;
+}
+
+.line.red { background: red; }
+
+/* FIELDERS */
+.fielder {
+  position: absolute;
+  width: 6%;
+  aspect-ratio: 1;
+  background: yellow;
+  border: 2px solid black;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7em;
+  font-weight: bold;
+}
+
+/* SHOT ARROW */
+.shot-arrow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  height: 3px;
+  background: blue;
+  transform-origin: left center;
+}
+
+/* CONTROLS (BOTTOM FIXED) */
+#controls {
+  background: white;
+  padding: 12px;
+  text-align: center;
+  border-top: 2px solid #ccc;
+  position: sticky;
+  bottom: 0;
+}
+
+#result {
+  margin-top: 8px;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<!-- SCOREBOARD -->
+<div id="scoreboard">
+  <div class="score-row">
+    <span id="score">Runs: 0 | Wickets: 0</span>
+    <span id="overs">Overs: 0.0 / 5</span>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="game-container">
+  <div class="canvas-container">
+    <div class="circle" id="ground">
+      <div class="inner-circle"></div>
+      <div class="pitch"></div>
+
+      <!-- Lines -->
+      <div class="line red" style="transform: rotate(0deg);"></div>
+      <div class="line red" style="transform: rotate(45deg);"></div>
+      <div class="line red" style="transform: rotate(90deg);"></div>
+      <div class="line red" style="transform: rotate(135deg);"></div>
+      <div class="line red" style="transform: rotate(180deg);"></div>
+      <div class="line red" style="transform: rotate(225deg);"></div>
+      <div class="line red" style="transform: rotate(270deg);"></div>
+      <div class="line red" style="transform: rotate(315deg);"></div>
+
+      <div class="shot-arrow" id="shotArrow"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div id="controls">
+  <label><input type="checkbox" id="lofted"> Lofted Shot</label>
+  <div id="result">Game starting...</div>
+</div>
+
+<script>
+window.onload = function() {
+  const ground = document.getElementById('ground');
+  const shotArrow = document.getElementById('shotArrow');
+  const resultBox = document.getElementById('result');
+  const scoreBox = document.getElementById('score');
+  const oversBox = document.getElementById('overs');
+
+  let circleRadius = ground.offsetWidth / 2;
+  let innerRadius = circleRadius * 0.25;
+
+  const sectorAngles = [22.5,67.5,112.5,157.5,202.5,247.5,292.5,337.5];
+  let placedAngles = new Map();
+
+  let runs = 0, wickets = 0, balls = 0;
+  const totalOvers = 5;
+
+  let shotAngle = 0;
+  let timer;
+
+  function updateScore() {
+    scoreBox.textContent = `Runs: ${runs} | Wickets: ${wickets}`;
+    oversBox.textContent = `Overs: ${Math.floor(balls/6)}.${balls%6} / ${totalOvers}`;
+  }
+
+  function clearFielders() {
+    placedAngles.forEach(f => ground.removeChild(f.element));
+    placedAngles.clear();
+  }
+
+  function placeFielder(angle, inside) {
+    const f = document.createElement('div');
+    f.className = 'fielder';
+    f.textContent = "F";
+
+    const r = inside ? innerRadius * 0.9 : circleRadius * 0.85;
+    const rad = angle * Math.PI / 180;
+
+    f.style.left = `${circleRadius + r * Math.cos(rad)}px`;
+    f.style.top = `${circleRadius + r * Math.sin(rad)}px`;
+
+    ground.appendChild(f);
+    placedAngles.set(angle, {element: f, inside});
+  }
+
+  function randomizeField() {
+    clearFielders();
+    const shuffled = [...sectorAngles].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < 5; i++) {
+      placeFielder(shuffled[i], Math.random() < 0.5);
+    }
+  }
+
+  ground.onclick = (e) => {
+    const rect = ground.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width/2);
+    const dy = e.clientY - (rect.top + rect.height/2);
+
+    shotAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+    if (shotAngle < 0) shotAngle += 360;
+
+    shotArrow.style.transform = `rotate(${shotAngle}deg)`;
+  };
+
+  function playShot() {
+    let outcome = "";
+    let run = 0;
+
+    if (Math.random() < 0.05) {
+      outcome = "OUT!";
+      wickets++;
+    } else {
+      run = [0,1,2,3,4,6][Math.floor(Math.random()*6)];
+      outcome = run === 0 ? "Dot Ball" : run + " Runs";
+    }
+
+    runs += run;
+    balls++;
+    updateScore();
+
+    resultBox.textContent = outcome;
+
+    if (balls >= totalOvers*6 || wickets >= 10) {
+      resultBox.textContent += " | Innings Over!";
+      return;
+    }
+
+    setTimeout(startBall, 1200);
+  }
+
+  function startBall() {
+    randomizeField();
+    let time = 2;
+    resultBox.textContent = "Choose shot... " + time;
+
+    clearInterval(timer);
+    timer = setInterval(() => {
+      time--;
+      resultBox.textContent = "Choose shot... " + time;
+
+      if (time <= 0) {
+        clearInterval(timer);
+        playShot();
+      }
+    }, 1000);
+  }
+
+  updateScore();
+  startBall();
+};
+</script>
+
+</body>
+</html>
+
+
+
