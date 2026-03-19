@@ -160,18 +160,22 @@ window.onload = function() {
   const resultBox = document.getElementById('result');
   const scoreBox = document.getElementById('score');
   const oversBox = document.getElementById('overs');
+  const loftedCheckbox = document.getElementById('lofted');
 
   let circleRadius = ground.offsetWidth / 2;
   let innerRadius = circleRadius * 0.25;
 
   const sectorAngles = [22.5,67.5,112.5,157.5,202.5,247.5,292.5,337.5];
+  const sectorNames = [
+    "Covers","Mid Off","Mid On","Mid Wicket",
+    "Square","Fine Leg","Third Man","Extra Cover"
+  ];
   let placedAngles = new Map();
 
   let runs = 0, wickets = 0, balls = 0;
   const totalOvers = 5;
 
   let shotAngle = 0;
-  let lofted = false; // new flag for lofted shots
   let timer;
 
   function updateScore() {
@@ -216,14 +220,10 @@ window.onload = function() {
     if (shotAngle < 0) shotAngle += 360;
 
     shotArrow.style.transform = `rotate(${shotAngle}deg)`;
-
-    // toggle lofted if user right-clicks (example mechanic)
-    lofted = e.shiftKey; // hold Shift to loft the shot
   };
 
   function checkFielderCatch(angle) {
     for (let [fa, f] of placedAngles) {
-      // tolerance ±22.5°
       let diff = Math.abs(fa - angle);
       if (diff > 180) diff = 360 - diff;
       if (diff <= 22.5) {
@@ -233,20 +233,46 @@ window.onload = function() {
     return false;
   }
 
+  function getSector(angle) {
+    let closest = 0, minDiff = 999;
+    sectorAngles.forEach((a, i) => {
+      let diff = Math.abs(a - angle);
+      if (diff > 180) diff = 360 - diff;
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = i;
+      }
+    });
+    return sectorNames[closest];
+  }
+
   function playShot() {
     let outcome = "";
     let run = 0;
 
-    // lofted shots have higher chance of being caught
-    if (lofted && checkFielderCatch(shotAngle) && Math.random() < 0.6) {
-      outcome = "Caught!";
+    // ✅ Read checkbox state
+    let lofted = loftedCheckbox.checked;
+    let shotType = lofted ? "Lofted" : "Driven";
+    let segment = getSector(shotAngle);
+
+    // --- Risk logic ---
+    let bowledProb = lofted ? 0.15 : 0.02; // higher chance of bowled for lofted
+    if (Math.random() < bowledProb) {
+      outcome = `${shotType} shot over ${segment} — BOWLED!`;
       wickets++;
-    } else if (!lofted && checkFielderCatch(shotAngle) && Math.random() < 0.3) {
-      outcome = "Caught!";
-      wickets++;
+    }
+    else if (checkFielderCatch(shotAngle)) {
+      let catchProb = lofted ? 0.7 : 0.3; // lofted easier to catch
+      if (Math.random() < catchProb) {
+        outcome = `${shotType} shot over ${segment} — CAUGHT!`;
+        wickets++;
+      } else {
+        run = lofted ? [4,6][Math.floor(Math.random()*2)] : [1,2,3][Math.floor(Math.random()*3)];
+        outcome = `${shotType} shot over ${segment} — ${run} Runs`;
+      }
     } else {
-      run = [0,1,2,3,4,6][Math.floor(Math.random()*6)];
-      outcome = run === 0 ? "Dot Ball" : run + " Runs";
+      run = lofted ? [2,4,6][Math.floor(Math.random()*3)] : [0,1,2,3,4][Math.floor(Math.random()*5)];
+      outcome = `${shotType} shot over ${segment} — ${run === 0 ? "Dot Ball" : run + " Runs"}`;
     }
 
     runs += run;
