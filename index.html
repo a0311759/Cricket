@@ -180,7 +180,7 @@ window.onload = function() {
   let placedAngles = new Map();
 
   let runs = 0, wickets = 0, balls = 0;
-  const totalOvers = 5;
+  const totalOvers = 12;
 
   let shotAngle = 0;
   let timer;
@@ -233,7 +233,7 @@ window.onload = function() {
     for (let [fa] of placedAngles) {
       let diff = Math.abs(fa - angle);
       if (diff > 180) diff = 360 - diff;
-      if (diff <= 22.5) return true;
+      if (diff <= 32.5) return true;
     }
     return false;
   }
